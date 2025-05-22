@@ -1,0 +1,175 @@
+SELECT
+  region,
+  SUM(net_generation - demand) AS total_energy_produced
+FROM
+  intel.energy_data
+GROUP BY
+  region
+ORDER BY
+  total_energy_produced DESC;
+  
+SELECT
+  region,
+  SUM(wind + solar + hydropower_and_pumped_storage) AS total_renewable_energy
+FROM
+  intel.energy_data
+GROUP BY
+  region
+ORDER BY
+  total_renewable_energy DESC;
+  
+SELECT
+  region,
+  SUM(wind + solar + hydropower_and_pumped_storage) / SUM(net_generation) * 100 AS percent_renewable_energy
+FROM
+  intel.energy_data
+GROUP BY
+  region
+ORDER BY
+  percent_renewable_energy DESC;
+  
+SELECT
+  date,
+  region,
+  (hydropower_and_pumped_storage + wind + solar) AS energy_generated_mw
+FROM
+  intel.energy_data;
+
+SELECT
+  date,
+  region,
+  (hydropower_and_pumped_storage + wind + solar) AS energy_generated_mw,
+  'renewable energy' AS energy_type
+FROM
+  intel.energy_data;
+
+SELECT
+  date,
+  region,
+  (all_petroleum_products + coal + natural_gas + nuclear + other_fuel_sources) AS energy_generated_mw
+FROM
+  intel.energy_data;
+
+SELECT
+  date,
+  region,
+  (all_petroleum_products + coal + natural_gas + nuclear + other_fuel_sources) AS energy_generated_mw,
+‘fossil fuel’ AS energy_type
+FROM
+  intel.energy_data;
+
+SELECT
+  date,
+  region,
+  hydropower_and_pumped_storage + wind + solar AS energy_generated_mw,
+  'renewable energy' AS energy_type
+FROM
+  intel.energy_data
+UNION
+SELECT
+  date,
+  region,
+  all_petroleum_products + coal + natural_gas + nuclear + other_fuel_sources AS energy_generated_mw,
+  'fossil fuel' AS energy_type
+FROM
+  intel.energy_data;
+  
+WITH joined_power_plants AS (
+    SELECT 
+        ipp.plant_name, 
+        ipp.plant_code, 
+        ipp.region, 
+        ipp.state, 
+        ipp.primary_technology, 
+        iep.energy_type, 
+        iep.energy_generated_mw
+    FROM intel.power_plants AS ipp
+    INNER JOIN intel.energy_by_plant AS iep
+    ON ipp.plant_code = iep.plant_code
+)
+SELECT * FROM joined_power_plants;
+
+WITH joined_power_plants AS (
+    SELECT 
+        ipp.plant_name, 
+        ipp.plant_code, 
+        ipp.region, 
+        ipp.state, 
+        ipp.primary_technology, 
+        iep.energy_type, 
+        iep.energy_generated_mw
+    FROM intel.power_plants AS ipp
+    INNER JOIN intel.energy_by_plant AS iep
+    ON ipp.plant_code = iep.plant_code
+)
+SELECT 
+    region, 
+    COUNT(*) AS total_renewable_power_plants
+FROM joined_power_plants
+WHERE energy_type = 'renewable_energy'
+GROUP BY region
+ORDER BY total_renewable_power_plants DESC;
+
+WITH joined_power_plants AS (
+    SELECT 
+        ipp.plant_name, 
+        ipp.plant_code, 
+        ipp.region, 
+        ipp.state, 
+        ipp.primary_technology, 
+        iep.energy_type, 
+        iep.energy_generated_mw
+    FROM intel.power_plants AS ipp
+    INNER JOIN intel.energy_by_plant AS iep
+    ON ipp.plant_code = iep.plant_code
+)
+SELECT 
+    region, 
+    COUNT(*) AS total_solar_plants, 
+    SUM(energy_generated_mw) AS total_solar_energy_mw
+FROM joined_power_plants
+WHERE primary_technology = 'Solar Photovoltaic'
+GROUP BY region
+ORDER BY total_solar_energy_mw DESC;
+
+WITH joined_power_plants AS (
+    SELECT 
+        ipp.plant_name, 
+        ipp.plant_code, 
+        ipp.region, 
+        ipp.state, 
+        ipp.primary_technology, 
+        iep.energy_type, 
+        iep.energy_generated_mw
+    FROM intel.power_plants AS ipp
+    INNER JOIN intel.energy_by_plant AS iep
+    ON ipp.plant_code = iep.plant_code
+)
+SELECT 
+    region, 
+    COUNT(*) AS total_solar_plants, 
+    SUM(energy_generated_mw) AS total_solar_energy_mw,
+    AVG(energy_generated_mw) AS avg_energy_per_solar_plant
+FROM joined_power_plants
+WHERE primary_technology = 'Solar Photovoltaic'
+GROUP BY region
+HAVING COUNT(*) >= 50
+ORDER BY total_solar_energy_mw DESC;
+
+SELECT 
+    region, 
+    DATE_PART('hour', time_at_end_of_hour) AS hour_of_day, 
+    SUM(hydropower_and_pumped_storage + wind + solar) AS total_renewable_energy_mw
+FROM intel.energy_data
+GROUP BY region, hour_of_day
+ORDER BY region, hour_of_day;
+
+SELECT 
+    region, 
+    DATE_PART('hour', time_at_end_of_hour) AS hour_of_day, 
+    SUM(hydropower_and_pumped_storage + wind + solar) AS total_renewable_energy_mw
+FROM intel.energy_data
+WHERE region IN ('California', 'Northwest')
+GROUP BY region, hour_of_day
+ORDER BY region, hour_of_day;
+
